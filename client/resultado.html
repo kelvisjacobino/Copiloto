@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Resultado do Simulado</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+</head>
+<body class="bg-light">
+
+<div class="container my-5">
+  <div class="card shadow-sm">
+    <div class="card-body text-center">
+      <h3>📊 Resultado do Simulado</h3>
+
+      <p><strong>Acertos:</strong> <span id="acertos"></span></p>
+      <p><strong>Erros:</strong> <span id="erros"></span></p>
+      <p><strong>Desempenho:</strong> <span id="percentual"></span>%</p>
+
+      <div id="iaFeedback" class="alert alert-info mt-3"></div>
+
+      <a href="dashboard.html" class="btn btn-primary w-100 mt-3">
+        Voltar ao Dashboard
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/resultado.js"></script>
+</body>
+</html>

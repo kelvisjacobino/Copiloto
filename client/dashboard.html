@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard | Plataforma de Estudos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Bootstrap 5 -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <!-- CSS custom -->
+  <link rel="stylesheet" href="assets/css/custom.css" />
+</head>
+<body class="bg-light">
+
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1">📚 Plataforma de Estudos</span>
+    </div>
+  </nav>
+
+  <!-- CONTEÚDO -->
+  <main class="container my-4">
+
+   <!-- CARD PLANO DO DIA -->
+<!-- CARD PLANO DO DIA -->
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h4 class="mb-3">📅 Plano de Hoje</h4>
+    <div id="planoHoje"></div>
+
+    <!-- Progresso -->
+    <div class="mb-3">
+      <small id="progressoTexto" class="text-muted"></small>
+      <div class="progress mt-1">
+        <div
+          id="barraProgresso"
+          class="progress-bar bg-success"
+          role="progressbar"
+          style="width: 0%"
+        >
+          0%
+        </div>
+      </div>
+    </div>
+<a href="erros.html" class="btn btn-outline-danger w-100 mt-2">
+  ❌ Ver erros e reforços
+</a>
+
+    <button id="btnEstudar" class="btn btn-success w-100">
+      ▶️ Iniciar Estudo
+    </button>
+  </div>
+</div>
+
+<!-- CARD TRILHA -->
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h4 class="mb-3">🧭 Trilha da Disciplina</h4>
+    <ul id="listaTrilha" class="list-group"></ul>
+  </div>
+</div>
+
+
+
+  </div>
+</div>
+
+        <!-- Progresso -->
+        <div class="mb-3">
+          <small id="progressoTexto" class="text-muted"></small>
+          <div class="progress mt-1">
+            <div
+              id="barraProgresso"
+              class="progress-bar bg-success"
+              role="progressbar"
+              style="width: 0%"
+            >
+              0%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- JS -->
+  <script src="assets/js/dashboard.js"></script>
+</body>
+</html>
