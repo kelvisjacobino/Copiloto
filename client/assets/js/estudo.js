@@ -128,7 +128,19 @@ const res = await fetch(url);
     questoesDiv.appendChild(div);
   });
 }
-
+// Função para mandar o conteúdo para a lista de reforços
+async function registrarNecessidadeReforco(conteudoId) {
+    try {
+        await fetch(`${API}/erros/registrar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conteudoId: conteudoId })
+        });
+        console.log("📌 Conteúdo enviado para a lista de reforços.");
+    } catch (error) {
+        console.error("Erro ao registrar reforço:", error);
+    }
+}
 // ===============================
 // LAZY LOAD DAS ALTERNATIVAS
 // ===============================
