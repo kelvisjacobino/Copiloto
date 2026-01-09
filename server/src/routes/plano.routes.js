@@ -3,216 +3,105 @@ const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
 const db = require('../database/db');
 
-/**
- * GET /api/plano/hoje
- * Retorna o plano do dia (com suporte a offset)
- * Ex: /api/plano/hoje?offset=1 → amanhã
- */
+// ==========================================
+// ROTA: /api/plano/hoje (CORRIGIDA)
+// ==========================================
 router.get('/hoje', authMiddleware, (req, res) => {
   const userId = req.userId;
+  const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const hoje = dias[new Date().getDay()];
 
-  const dias = [
-    'Domingo',
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado'
-  ];
-
-  const hojeIndex = new Date().getDay();
-  const hoje = dias[hojeIndex];
-
-  // 🟡 DOMINGO → REVISÃO
   if (hoje === 'Domingo') {
-    return res.json({
-      dia: 'Domingo',
-      tempo_total: '1h',
-      disciplina: 'Revisão Geral',
-      conteudo: 'Revisão semanal',
-      acao: 'revisao',
-      conteudo_id: 999,
-      total_conteudos: 0,
-      concluidos: 0
-    });
-  }
-
-  // 1️⃣ Disciplina do dia
-  const sqlDisciplina = `
-    SELECT 
-      p.disciplina_id,
-      d.nome AS disciplina
-    FROM planos p
-    JOIN disciplinas d ON d.id = p.disciplina_id
-    WHERE p.user_id = ?
-      AND p.dia_semana = ?
-    ORDER BY p.ordem
-    LIMIT 1
-  `;
-
-  db.get(sqlDisciplina, [userId, hoje], (err, plano) => {
-    if (err || !plano) {
-      return res.json({ message: 'Hoje é dia de descanso 😌' });
-    }
-
-    const { disciplina_id, disciplina } = plano;
-
-    // 2️⃣ Progresso da disciplina
-    const sqlProgresso = `
-      SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN p.status = 'estudado' THEN 1 ELSE 0 END) AS concluidos
-      FROM conteudos c
-      LEFT JOIN progresso p
-        ON p.conteudo_id = c.id
-        AND p.user_id = ?
-      WHERE c.disciplina_id = ?
-    `;
-
-    db.get(sqlProgresso, [userId, disciplina_id], (err, progresso) => {
-      const totalConteudos = progresso?.total || 0;
-      const concluidos = progresso?.concluidos || 0;
-
-      // 3️⃣ Conteúdo em reforço
-      const sqlReforco = `
-        SELECT c.id, c.titulo
-        FROM conteudos c
-        JOIN progresso p ON p.conteudo_id = c.id
-        WHERE p.user_id = ?
-          AND p.status = 'reforco'
-          AND c.disciplina_id = ?
-        ORDER BY c.ordem
-        LIMIT 1
-      `;
-
-      db.get(sqlReforco, [userId, disciplina_id], (err, conteudoReforco) => {
-        if (conteudoReforco) {
-          return res.json({
-            dia: hoje,
-            tempo_total: '2h',
-            disciplina,
-            disciplina_id,
-            conteudo: conteudoReforco.titulo,
-            conteudo_id: conteudoReforco.id,
-            acao: 'reforco',
-            total_conteudos: totalConteudos,
-            concluidos
-          });
-        }
-
-        // 4️⃣ Próximo conteúdo pendente
-        const sqlPendente = `
-          SELECT c.id, c.titulo
-          FROM conteudos c
-          LEFT JOIN progresso p
-            ON p.conteudo_id = c.id
-            AND p.user_id = ?
-          WHERE c.disciplina_id = ?
-            AND (p.status IS NULL OR p.status = 'leitura')
-          ORDER BY c.ordem
-          LIMIT 1
-        `;
-
-        db.get(sqlPendente, [userId, disciplina_id], (err, conteudo) => {
-          if (!conteudo) {
-            return res.json({
-              dia: hoje,
-              disciplina,
-              disciplina_id,
-              message: 'Disciplina concluída 🎉',
-              total_conteudos: totalConteudos,
-              concluidos: totalConteudos
-            });
-          }
-
-          return res.json({
-            dia: hoje,
-            tempo_total: '2h',
-            disciplina,
-            disciplina_id,
-            conteudo: conteudo.titulo,
-            conteudo_id: conteudo.id,
-            acao: 'estudar',
-            total_conteudos: totalConteudos,
-            concluidos
-          });
-        });
-      });
-    });
-  });
-});
-
-/**
- * GET /api/plano/trilha
- * Retorna a trilha da disciplina do dia
- */
-router.get('/trilha', authMiddleware, (req, res) => {
-  const userId = req.userId;
-
-  const dias = [
-    'Domingo',
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado'
-  ];
-
-  const hojeIndex = new Date().getDay();
-  const hoje = dias[hojeIndex];
-
-  // Domingo não tem trilha tradicional
-  if (hoje === 'Domingo') {
-    return res.json({
-      tipo: 'revisao_semanal',
-      message: 'Domingo é dia de revisão geral'
-    });
+    return res.json({ dia: hoje, acao: 'revisao', disciplina: 'Revisão Geral', total_conteudos: 0, concluidos: 0 });
   }
 
   const sqlDisciplina = `
     SELECT p.disciplina_id, d.nome AS disciplina
     FROM planos p
     JOIN disciplinas d ON d.id = p.disciplina_id
-    WHERE p.user_id = ?
-      AND p.dia_semana = ?
-    ORDER BY p.ordem
-    LIMIT 1
+    WHERE p.user_id = ? AND p.dia_semana = ? LIMIT 1
   `;
 
   db.get(sqlDisciplina, [userId, hoje], (err, plano) => {
-    if (!plano) {
-      return res.json({ message: 'Sem trilha hoje' });
-    }
+    if (err || !plano) return res.json({ message: 'Hoje é dia de descanso 😌' });
 
     const { disciplina_id, disciplina } = plano;
 
-    const sqlTrilha = `
-      SELECT
-        c.id,
-        c.titulo,
-        COALESCE(p.status, 'pendente') AS status
+    const sqlProximo = `
+      SELECT c.id, c.titulo, p.status
       FROM conteudos c
-      LEFT JOIN progresso p
-        ON p.conteudo_id = c.id
-        AND p.user_id = ?
-      WHERE c.disciplina_id = ?
-      ORDER BY c.ordem
+      LEFT JOIN progresso p ON p.conteudo_id = c.id AND p.user_id = ?
+      WHERE c.disciplina_id = ? AND (p.status IS NULL OR p.status != 'estudado')
+      ORDER BY c.ordem ASC LIMIT 1
     `;
 
-    db.all(sqlTrilha, [userId, disciplina_id], (err, trilha) => {
-      if (err) {
-        return res.status(500).json({
-          error: 'Erro ao buscar trilha'
-        });
-      }
+    db.get(sqlProximo, [userId, disciplina_id], (err, conteudo) => {
+   // Altere a query sqlGeral no plano.routes.js para:
+const sqlGeral = `
+  SELECT 
+    COUNT(c.id) AS total,
+    SUM(CASE WHEN p.status IN ('estudado', 'reforco') THEN 1 ELSE 0 END) AS concluidos
+  FROM conteudos c
+  LEFT JOIN progresso p ON p.conteudo_id = c.id AND p.user_id = ?
+  WHERE c.disciplina_id = ?
+`;
 
-      return res.json({
-        disciplina,
-        disciplina_id,
-        trilha
+      db.get(sqlGeral, [userId, disciplina_id], (err, resultadoProgresso) => {
+        const total = resultadoProgresso?.total || 0;
+        const concluidos = resultadoProgresso?.concluidos || 0;
+
+        if (!conteudo) {
+          return res.json({ dia: hoje, disciplina, message: 'Disciplina concluída 🎉', total_conteudos: total, concluidos: total });
+        }
+
+        res.json({
+          dia: hoje,
+          disciplina,
+          disciplina_id,
+          conteudo: conteudo.titulo,
+          conteudo_id: conteudo.id,
+          acao: conteudo.status === 'reforco' ? 'reforco' : 'estudar',
+          total_conteudos: total,
+          concluidos: concluidos
+        });
       });
+    });
+  });
+});
+
+// ==========================================
+// ROTA: /api/plano/trilha (CORRIGIDA)
+// ==========================================
+router.get('/trilha', authMiddleware, (req, res) => {
+  const userId = req.userId;
+  const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const hoje = dias[new Date().getDay()];
+
+  // 1. Descobre qual disciplina é hoje
+  const sqlDis = `SELECT disciplina_id FROM planos WHERE user_id = ? AND dia_semana = ? LIMIT 1`;
+
+  db.get(sqlDis, [userId, hoje], (err, plano) => {
+    if (err || !plano) return res.json({ trilha: [] });
+
+    // 2. Busca todos os conteúdos daquela disciplina e o status do usuário
+    const sqlT = `
+      SELECT 
+        c.id, 
+        c.titulo, 
+        COALESCE(p.status, 'pendente') AS status
+      FROM conteudos c
+      LEFT JOIN progresso p ON p.conteudo_id = c.id AND p.user_id = ?
+      WHERE c.disciplina_id = ?
+      ORDER BY c.ordem ASC
+    `;
+
+    db.all(sqlT, [userId, plano.disciplina_id], (err, rows) => {
+      if (err) {
+        console.error("Erro SQL Trilha:", err);
+        return res.status(500).json({ error: "Erro na trilha" });
+      }
+      // Garante que sempre envie um objeto com a chave 'trilha'
+      res.json({ trilha: rows || [] });
     });
   });
 });

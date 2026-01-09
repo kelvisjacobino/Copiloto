@@ -3,66 +3,32 @@ const router = express.Router();
 const db = require('../database/db');
 
 /**
- * GET /api/estudo/hoje
- * Retorna o estudo do dia baseado no plano
+ * GET /api/erros/lista
+ * Retorna apenas os conteúdos marcados como 'reforco' para o aluno
  */
-router.get('/hoje', (req, res) => {
-  const userId = 1; // JWT desligado
+// No seu arquivo src/routes/erros.routes.js
+router.get('/lista', (req, res) => {
+  const userId = 1;
 
-  // 1️⃣ Buscar plano do dia
-  const sqlPlano = `
+  const sql = `
     SELECT 
-      c.id AS conteudo_id,
-      d.nome AS disciplina,
-      c.titulo AS conteudo
-    FROM planos p
-    JOIN disciplinas d ON d.id = p.disciplina_id
-    JOIN conteudos c ON c.disciplina_id = d.id
-    WHERE p.user_id = ?
-    ORDER BY p.ordem, c.ordem
-    LIMIT 1
+      c.id AS conteudo_id, 
+      d.nome AS disciplina, 
+      c.titulo AS conteudo, 
+      p.ultima_data,
+      p.nota_acerto,
+      p.qtd_acertos,
+      p.qtd_total
+    FROM progresso p
+    JOIN conteudos c ON c.id = p.conteudo_id
+    JOIN disciplinas d ON d.id = c.disciplina_id
+    WHERE p.user_id = ? AND p.status = 'reforco'
+    ORDER BY p.ultima_data DESC
   `;
 
-  db.get(sqlPlano, [userId], (err, plano) => {
-    if (!plano) {
-      return res.status(404).json({
-        error: 'Conteúdo não identificado'
-      });
-    }
-
-    const { conteudo_id, disciplina, conteudo } = plano;
-
-    // 2️⃣ Buscar material
-    db.get(
-      `SELECT texto FROM materiais WHERE conteudo_id = ?`,
-      [conteudo_id],
-      (err, materialRow) => {
-
-        const material =
-          materialRow?.texto || 'Material não cadastrado.';
-
-        // 3️⃣ Buscar questões
-        db.all(
-          `SELECT id, enunciado, alternativa_a, alternativa_b,
-                  alternativa_c, alternativa_d, correta
-           FROM questoes
-           WHERE conteudo_id = ?`,
-          [conteudo_id],
-          (err, questoes) => {
-
-            return res.json({
-              disciplina,
-              conteudo,
-              conteudo_id,
-              subtopicos: [], // opcional por agora
-              material,
-              questoes: questoes || []
-            });
-          }
-        );
-      }
-    );
+  db.all(sql, [userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ erros: rows || [] });
   });
 });
-
 module.exports = router;

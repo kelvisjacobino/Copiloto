@@ -239,49 +239,68 @@ router.post('/leitura', (req, res) => {
 });
 
 /* =====================================================
-   POST /api/estudo/resultado
+   POST /api/estudo/resultado (VERSÃO DEFINITIVA)
 ===================================================== */
 router.post('/resultado', (req, res) => {
   const { conteudo_id, acertos, total } = req.body;
   const userId = 1;
 
-  if (!conteudo_id) {
-    return res.status(400).json({ error: 'conteudo_id é obrigatório' });
-  }
-
   const desempenho = total > 0 ? acertos / total : 0;
-  const status = desempenho < 0.6 ? 'reforco' : 'estudado';
+  const status = desempenho < 0.7 ? 'reforco' : 'estudado';
+  const notaPercentual = Math.round(desempenho * 100);
+// Dentro do router.post('/resultado') no estudo.routes.js
+const { detalhes } = req.body; // Recebe a lista de acertos/erros do front
 
+if (detalhes && detalhes.length > 0) {
+  detalhes.forEach(det => {
+    db.run(
+      `INSERT INTO historico_questoes (user_id, questao_id, conteudo_id, resposta_usuario, acertou, data_resumo)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [userId, det.questao_id, conteudo_id, det.resposta_usuario, det.acertou, hojeISO()]
+    );
+  });
+}
+  // Usamos db.serialize para garantir que as operações rodem na ordem
   db.serialize(() => {
+    
+    // 1. Salva o progresso
     db.run(
-      `
-      INSERT INTO progresso (user_id, conteudo_id, status, ultima_data)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(user_id, conteudo_id)
-      DO UPDATE SET status = ?, ultima_data = ?
-      `,
-      [userId, conteudo_id, status, hojeISO(), status, hojeISO()]
+      `INSERT INTO progresso (user_id, conteudo_id, status, ultima_data, nota_acerto, qtd_acertos, qtd_total)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, conteudo_id)
+       DO UPDATE SET 
+         status = excluded.status, 
+         ultima_data = excluded.ultima_data,
+         nota_acerto = excluded.nota_acerto,
+         qtd_acertos = excluded.qtd_acertos,
+         qtd_total = excluded.qtd_total`,
+      [userId, conteudo_id, status, hojeISO(), notaPercentual, acertos, total],
+      (err) => {
+        if (err) {
+            console.error(err.message);
+            // Se houver erro aqui, enviamos a resposta e usamos RETURN para parar o código
+            return res.status(500).json({ error: "Erro ao salvar no banco" });
+        }
+      }
     );
 
-    db.run(
-      `DELETE FROM revisoes WHERE user_id = ? AND conteudo_id = ?`,
-      [userId, conteudo_id]
-    );
-
-    [
-      { tipo: 'D1', dias: 1 },
-      { tipo: 'D7', dias: 7 },
-      { tipo: 'D30', dias: 30 }
-    ].forEach(r => {
-      db.run(
-        `INSERT INTO revisoes (user_id, conteudo_id, tipo, data_prevista, status)
-         VALUES (?, ?, ?, ?, 'pendente')`,
-        [userId, conteudo_id, r.tipo, addDias(r.dias)]
-      );
+    // 2. Envia a resposta APENAS UMA VEZ ao final de tudo
+    // Nota: O res.json deve estar fora dos callbacks individuais se não houver erro,
+    // ou você deve garantir que ele não seja chamado múltiplas vezes.
+    
+    // A melhor forma é enviar a resposta após a última operação de banco.
+    db.run("SELECT 1", [], () => {
+       if (!res.headersSent) { // Proteção extra: só envia se ainda não enviou
+          res.json({ 
+            message: 'Estudo finalizado!', 
+            status, 
+            acertos, 
+            total, 
+            desempenho: notaPercentual + '%' 
+          });
+       }
     });
   });
-
-  res.json({ message: 'Estudo finalizado', status });
 });
 
 module.exports = router;
